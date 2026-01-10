@@ -3,7 +3,7 @@ const app = express();
 app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(3000);
 
-const { Client, GatewayIntentBits } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 
 const client = new Client({
   intents: [
@@ -13,45 +13,79 @@ const client = new Client({
   ]
 });
 
-// Render 환경변수 Key 이름을 'TOKEN'으로 설정하세요.
-const TOKEN = process.env.TOKEN; 
+const TOKEN = process.env.TOKEN;
 
-const ALERT_CHANNEL_ID = '1459481518283165769';
-const AURORA_ROLE_ID = '1459482724174925979';
+// ===== [수정 필요] ID 설정 섹션 =====
+const TARGET_CATEGORY_ID = '1444681949913419777'; 
 
-const BIOMES = [
-  { key: 'biome started - aurora', message: '오로라 바이옴이 감지되었습니다.', rolePing: true },
-  { key: 'biome started - cyberspace', message: '사이버스페이스 바이옴이 감지되었습니다.', rolePing: false },
-  { key: 'biome started - dreamspace', message: '드림스페이스 바이옴이 감지되었습니다.', rolePing: false },
-  { key: 'biome started - glitched', message: '글리치 바이옴이 감지되었습니다.', rolePing: false }
-];
+const CONFIG = {
+  AURORA: {
+    channelId: '1459481518283165769',
+    roleId: '1459482724174925979',
+    key: 'biome started - aurora'
+  },
+  CYBERSPACE: {
+    channelId: '1446766069078560891', 
+    key: 'biome started - cyberspace'
+  },
+  DREAMSPACE: {
+    channelId: '1446784055524851793',
+    key: 'biome started - dreamspace'
+  },
+  GLITCHED: {
+    channelId: '1446783997010247862',
+    key: 'biome started - glitched'
+  }
+};
+// =================================
 
 client.once('ready', () => {
   console.log(`봇 로그인됨: ${client.user.tag}`);
 });
 
 client.on('messageCreate', async (message) => {
-  if (!message.webhookId) return;
-  if (message.embeds.length === 0) return;
+  // 웹후크가 아니고 임베드가 없으면 무시
+  if (!message.webhookId || message.embeds.length === 0) return;
 
-  const embed = message.embeds[0];
-  const text = (embed.description ?? '').toLowerCase();
+  // 지정된 카테고리가 아니면 무시
+  if (message.channel.parentId !== TARGET_CATEGORY_ID) return;
 
-  for (const biome of BIOMES) {
-    if (!text.includes(biome.key)) continue;
+  const originalEmbed = message.embeds[0];
+  const description = (originalEmbed.description ?? '').toLowerCase();
 
-    const alertChannel = await client.channels.fetch(ALERT_CHANNEL_ID);
-    if (!alertChannel) return;
+  // 어떤 바이옴인지 찾기
+  let targetConfig = null;
+  for (const key in CONFIG) {
+    if (description.includes(CONFIG[key].key)) {
+      targetConfig = CONFIG[key];
+      break;
+    }
+  }
 
-    let sendText = '';
-    if (biome.rolePing) {
-      sendText += `<@&${AURORA_ROLE_ID}>\n`;
+  // 매칭되는 바이옴이 없으면 무시
+  if (!targetConfig) return;
+
+  try {
+    const targetChannel = await client.channels.fetch(targetConfig.channelId);
+    if (!targetChannel) return;
+
+    // 핑 설정 (역할 ID가 있는 경우에만)
+    let content = "";
+    if (targetConfig.roleId) {
+      content = `<@&${targetConfig.roleId}>`;
     }
 
-    sendText += `${biome.message}\n🔗 메시지 링크: ${message.url}`;
+    // 원본 임베드 복제
+    const newEmbed = EmbedBuilder.from(originalEmbed);
 
-    await alertChannel.send(sendText);
-    break;
+    // 실제 전송 부분!
+    await targetChannel.send({
+      content: content,
+      embeds: [newEmbed]
+    });
+
+  } catch (error) {
+    console.error('메시지 전송 에러:', error);
   }
 });
 
