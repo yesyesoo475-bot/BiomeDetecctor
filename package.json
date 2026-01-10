@@ -1,0 +1,16 @@
+{
+  "name": "biomedetector",
+  "version": "1.0.0",
+  "description": "Discord bot that detects Biome messages",
+  "main": "index.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "discord.js": "^14.25.1"
+  }
+}
