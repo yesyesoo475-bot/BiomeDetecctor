@@ -1,5 +1,7 @@
 const express = require('express');
 const app = express();
+
+// 24�쒓컙 媛��숈쓣 �꾪븳 �� �쒕쾭
 app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(3000);
 
@@ -14,44 +16,56 @@ const client = new Client({
 });
 
 const TOKEN = process.env.TOKEN;
-
 const TARGET_CATEGORY_ID = '1444681949913419777'; 
 
+// 諛붿씠�대퀎 �ㅼ젙 �곗씠��
 const CONFIG = {
   AURORA: { 
     name: 'AURORA',
     channelId: '1459481518283165769', 
-    roleId: '1459482724174925979',
+    roleId: '1459482724174925979', 
     key: 'biome started - aurora' 
   },
   CYBERSPACE: { 
     name: 'CYBERSPACE',
     channelId: '1446766069078560891', 
+    everyone: true, 
     key: 'biome started - cyberspace' 
   },
   DREAMSPACE: { 
     name: 'DREAMSPACE',
     channelId: '1446784055524851793', 
+    everyone: true, 
     key: 'biome started - dreamspace' 
   },
   GLITCHED: { 
     name: 'GLITCHED',
     channelId: '1446783997010247862', 
+    everyone: true, 
     key: 'biome started - glitched' 
+  },
+  // �뚯뒪�몄슜 WINDY 諛붿씠�� 異붽�
+  WINDY: {
+    name: 'WINDY',
+    channelId: '1461348550758891717',
+    everyone: true,
+    key: 'biome started - windy'
   }
 };
 
 client.once('ready', () => {
-  console.log(`봇 로그인됨: ${client.user.tag}`);
+  console.log(`�� 遊� 濡쒓렇�� �꾨즺: ${client.user.tag}`);
 });
 
 client.on('messageCreate', async (message) => {
+  // 1. 湲곕낯 �꾪꽣留� (�뱁썒, �꾨쿋��, 移댄뀒怨좊━ 泥댄겕)
   if (!message.webhookId || message.embeds.length === 0) return;
   if (message.channel.parentId !== TARGET_CATEGORY_ID) return;
 
   const originalEmbed = message.embeds[0];
   const description = (originalEmbed.description ?? '').toLowerCase();
 
+  // 2. CONFIG�먯꽌 �ㅼ썙�� �쇱튂 �щ� �뺤씤
   const targetConfig = Object.values(CONFIG).find(conf => description.includes(conf.key));
   if (!targetConfig) return;
 
@@ -59,26 +73,27 @@ client.on('messageCreate', async (message) => {
     const targetChannel = await client.channels.fetch(targetConfig.channelId);
     if (!targetChannel) return;
 
-    const messageLink = `https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`;
-
-    // 본문 구성: [역할핑] [바이옴 이름] 바이옴이 감지되었습니다. + 링크
+    // 3. 硫붿떆吏� 蹂몃Ц 援ъ꽦 (�먮툕由ъ썝 �� �먮뒗 ��븷 ��)
     let content = "";
-    if (targetConfig.roleId) {
-      content += `<@&${targetConfig.roleId}> `; // 오로라일 때만 핑 추가
+    if (targetConfig.everyone) {
+      content += "@everyone ";
+    } else if (targetConfig.roleId) {
+      content += `<@&${targetConfig.roleId}> `;
     }
-    content += `**${targetConfig.name} 바이옴이 감지되었습니다.**\n`;
-    content += `🔗 **원본 메시지 링크:** ${messageLink}`;
 
+    content += `**${targetConfig.name} Detected**`;
+
+    // 4. 硫붿떆吏� �꾩넚
     await targetChannel.send({
       content: content,
       embeds: [originalEmbed.data],
       components: message.components
     });
 
-    console.log(`[${new Date().toLocaleString()}] ${targetConfig.name} 전송 완료`);
+    console.log(`[${new Date().toLocaleString()}]  ${targetConfig.name} �꾩넚 �꾨즺`);
 
   } catch (error) {
-    console.error('전송 에러:', error);
+    console.error(`[�먮윭] ${targetConfig.name} 泥섎━ 以� �ㅻ쪟:`, error);
   }
 });
 
