@@ -1,59 +1,84 @@
 const express = require('express');
 const app = express();
+app.get('/', (req, res) => res.send('Bot is running!'));
+app.listen(3000);
+
 const { Client, GatewayIntentBits } = require('discord.js');
 
-// 1. 웹 서버 설정 (Render용)
-const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Bot status: Initializing...'));
-app.listen(PORT, () => {
-  console.log(`[1] Web server is live on port ${PORT}`);
-});
-
-// 2. 봇 클라이언트 생성
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
+    GatewayIntentBits.MessageContent
   ]
 });
 
-// 3. 실행 함수 정의
-async function startBot() {
-  const TOKEN = process.env.TOKEN;
-  
-  if (!TOKEN) {
-    console.error("❌ TOKEN is missing in environment variables!");
-    return;
-  }
+const TOKEN = process.env.TOKEN;
 
-  console.log("[2] Attempting to login to Discord...");
+const TARGET_CATEGORY_ID = '1444681949913419777'; 
+
+const CONFIG = {
+  AURORA: { 
+    name: 'AURORA',
+    channelId: '1459481518283165769', 
+    roleId: '1459482724174925979',
+    key: 'biome started - aurora' 
+  },
+  CYBERSPACE: { 
+    name: 'CYBERSPACE',
+    channelId: '1446766069078560891', 
+    key: 'biome started - cyberspace' 
+  },
+  DREAMSPACE: { 
+    name: 'DREAMSPACE',
+    channelId: '1446784055524851793', 
+    key: 'biome started - dreamspace' 
+  },
+  GLITCHED: { 
+    name: 'GLITCHED',
+    channelId: '1446783997010247862', 
+    key: 'biome started - glitched' 
+  }
+};
+
+client.once('ready', () => {
+  console.log(`봇 로그인됨: ${client.user.tag}`);
+});
+
+client.on('messageCreate', async (message) => {
+  if (!message.webhookId || message.embeds.length === 0) return;
+  if (message.channel.parentId !== TARGET_CATEGORY_ID) return;
+
+  const originalEmbed = message.embeds[0];
+  const description = (originalEmbed.description ?? '').toLowerCase();
+
+  const targetConfig = Object.values(CONFIG).find(conf => description.includes(conf.key));
+  if (!targetConfig) return;
 
   try {
-    // 타임아웃 20초 설정
-    const loginPromise = client.login(TOKEN);
-    const timeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Login Timeout (20s)')), 20000)
-    );
+    const targetChannel = await client.channels.fetch(targetConfig.channelId);
+    if (!targetChannel) return;
 
-    // 로그인과 타임아웃 중 먼저 끝나는 쪽 실행
-    await Promise.race([loginPromise, timeoutPromise]);
-    console.log(`✅ [3] Success! Logged in as: ${client.user.tag}`);
+    const messageLink = `https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`;
+
+    let content = "";
+    if (targetConfig.roleId) {
+      content += `<@&${targetConfig.roleId}> `; // 오로라일 때만 핑 추가
+    }
+    content += `**${targetConfig.name} 바이옴이 감지되었습니다.**\n`;
+    content += `🔗 **원본 메시지 링크:** ${messageLink}`;
+
+    await targetChannel.send({
+      content: content,
+      embeds: [originalEmbed.data],
+      components: message.components
+    });
+
+    console.log(`[${new Date().toLocaleString()}] ${targetConfig.name} 전송 완료`);
+
   } catch (error) {
-    console.error("❌ [4] Login failed or timed out:");
-    console.error(error);
+    console.error('전송 에러:', error);
   }
-}
-
-// 봇 실행
-startBot();
-
-// 준비 완료 이벤트
-client.once('ready', () => {
-  console.log("🚀 Bot is ready and listening for events.");
 });
 
-// 에러 핸들러 추가 (비정상 종료 방지)
-process.on('unhandledRejection', error => {
-	console.error('Unhandled promise rejection:', error);
-});
+client.login(TOKEN);
