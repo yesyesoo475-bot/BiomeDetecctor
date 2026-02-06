@@ -1,16 +1,10 @@
 const express = require('express');
 const app = express();
-
-// 1. 웹 서버 설정 (Render용)
-const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot is running!'));
-app.listen(PORT, () => {
-  console.log(`[SYSTEM] 웹 서버가 ${PORT}번 포트에서 가동 중입니다.`);
-});
+app.listen(3000);
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
-// 2. 봇 클라이언트 생성
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -19,43 +13,36 @@ const client = new Client({
   ]
 });
 
-// ---------------- [ 상세 로그 및 에러 추적 구간 ] ----------------
-client.on('debug', info => console.log(`[DEBUG] ${info}`));
-client.on('warn', info => console.warn(`[WARN] ${info}`));
-client.on('error', error => console.error(`[ERROR] 봇 실행 에러:`, error));
-
-client.on('shardError', error => {
-    console.error('❌ [SHARD ERROR] 웹소켓 연결 오류 발생:', error);
-});
-
-client.on('shardDisconnect', (event, id) => {
-    console.warn(`⚠️ [DISCONNECT] 샤드 ${id}의 연결이 끊겼습니다:`, event);
-});
-
-client.on('invalidated', () => {
-    console.error('❌ [INVALIDATED] 세션이 무효화되었습니다. 토큰이 올바른지 확인하세요.');
-});
-// ----------------------------------------------------------------
-
 const TOKEN = process.env.TOKEN;
-
-if (!TOKEN || TOKEN === "") {
-  console.error("❌ [ERROR] TOKEN 환경 변수가 비어있습니다! Render의 Environment 설정을 확인하세요.");
-} else {
-  console.log("🔑 [INFO] 토큰을 읽어왔습니다. 연결을 시도합니다...");
-}
 
 const TARGET_CATEGORY_ID = '1444681949913419777'; 
 
 const CONFIG = {
-  AURORA: { name: 'AURORA', channelId: '1459481518283165769', roleId: '1459482724174925979', key: 'biome started - aurora' },
-  CYBERSPACE: { name: 'CYBERSPACE', channelId: '1446766069078560891', everyone: true, key: 'biome started - cyberspace' },
-  DREAMSPACE: { name: 'DREAMSPACE', channelId: '1446784055524851793', everyone: true, key: 'biome started - dreamspace' },
-  GLITCHED: { name: 'GLITCHED', channelId: '1446783997010247862', everyone: true, key: 'biome started - glitched' }
+  AURORA: { 
+    name: 'AURORA',
+    channelId: '1459481518283165769', 
+    roleId: '1459482724174925979',
+    key: 'biome started - aurora' 
+  },
+  CYBERSPACE: { 
+    name: 'CYBERSPACE',
+    channelId: '1446766069078560891', 
+    key: 'biome started - cyberspace' 
+  },
+  DREAMSPACE: { 
+    name: 'DREAMSPACE',
+    channelId: '1446784055524851793', 
+    key: 'biome started - dreamspace' 
+  },
+  GLITCHED: { 
+    name: 'GLITCHED',
+    channelId: '1446783997010247862', 
+    key: 'biome started - glitched' 
+  }
 };
 
 client.once('ready', () => {
-  console.log(`✅ [SUCCESS] 봇 로그인 완료! 계정: ${client.user.tag}`);
+  console.log(`봇 로그인됨: ${client.user.tag}`);
 });
 
 client.on('messageCreate', async (message) => {
@@ -72,14 +59,15 @@ client.on('messageCreate', async (message) => {
     const targetChannel = await client.channels.fetch(targetConfig.channelId);
     if (!targetChannel) return;
 
+    const messageLink = `https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`;
+
+    // 본문 구성: [역할핑] [바이옴 이름] 바이옴이 감지되었습니다. + 링크
     let content = "";
-    if (targetConfig.everyone) {
-      content += "@everyone ";
-    } else if (targetConfig.roleId) {
-      content += `<@&${targetConfig.roleId}> `;
+    if (targetConfig.roleId) {
+      content += `<@&${targetConfig.roleId}> `; // 오로라일 때만 핑 추가
     }
-    
-    content += `**${targetConfig.name} Detected**`;
+    content += `**${targetConfig.name} 바이옴이 감지되었습니다.**\n`;
+    content += `🔗 **원본 메시지 링크:** ${messageLink}`;
 
     await targetChannel.send({
       content: content,
@@ -87,15 +75,11 @@ client.on('messageCreate', async (message) => {
       components: message.components
     });
 
-    console.log(`[${new Date().toLocaleString()}] 📤 ${targetConfig.name} 알림 전송 완료`);
+    console.log(`[${new Date().toLocaleString()}] ${targetConfig.name} 전송 완료`);
+
   } catch (error) {
-    console.error(`[에러] ${targetConfig.name} 전송 실패:`, error);
+    console.error('전송 에러:', error);
   }
 });
 
-// 3. 실제 로그인 시도
-client.login(TOKEN).catch(err => {
-  console.error("❌ [LOGIN FAILED] 디스코드 서버에서 로그인을 거절했습니다.");
-  console.error("메시지:", err.message);
-  console.error("코드:", err.code);
-});
+client.login(TOKEN);
