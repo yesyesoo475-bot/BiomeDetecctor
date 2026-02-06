@@ -1,16 +1,9 @@
 const express = require('express');
 const app = express();
 
-// --- [수정된 부분] Render 포트 설정을 위한 변수 ---
-const PORT = process.env.PORT || 3000; 
-
 // 24시간 가동을 위한 웹 서버
 app.get('/', (req, res) => res.send('Bot is running!'));
-
-// --- [수정된 부분] Render가 부여한 포트로 리스닝 ---
-app.listen(PORT, () => {
-  console.log(`✅ Web Server is running on port ${PORT}`);
-});
+app.listen(3000);
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
@@ -30,13 +23,13 @@ const CONFIG = {
   AURORA: { 
     name: 'AURORA',
     channelId: '1459481518283165769', 
-    roleId: '1459482724174925979', 
+    roleId: '1459482724174925979', // 특정 역할 핑
     key: 'biome started - aurora' 
   },
   CYBERSPACE: { 
     name: 'CYBERSPACE',
     channelId: '1446766069078560891', 
-    everyone: true, 
+    everyone: true, // 에브리원 핑 여부
     key: 'biome started - cyberspace' 
   },
   DREAMSPACE: { 
@@ -76,9 +69,11 @@ client.on('messageCreate', async (message) => {
     // 3. 메시지 본문 구성
     let content = "";
     
+    // 에브리원 핑 대상인 경우
     if (targetConfig.everyone) {
       content += "@everyone ";
     } 
+    // 특정 역할 핑이 설정된 경우 (AURORA 등)
     else if (targetConfig.roleId) {
       content += `<@&${targetConfig.roleId}> `;
     }
@@ -100,4 +95,3 @@ client.on('messageCreate', async (message) => {
 });
 
 client.login(TOKEN);
-
