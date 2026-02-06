@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 
-// 1. 포트 설정
+// 1. 웹 서버 설정 (Render용)
 const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(PORT, () => {
@@ -10,6 +10,7 @@ app.listen(PORT, () => {
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
+// 2. 봇 클라이언트 생성
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -18,18 +19,30 @@ const client = new Client({
   ]
 });
 
-// ================= [여기에 디버그 코드 추가] =================
+// ---------------- [ 상세 로그 및 에러 추적 구간 ] ----------------
 client.on('debug', info => console.log(`[DEBUG] ${info}`));
-client.on('error', console.error);
-client.on('warn', console.warn);
-// ==========================================================
+client.on('warn', info => console.warn(`[WARN] ${info}`));
+client.on('error', error => console.error(`[ERROR] 봇 실행 에러:`, error));
+
+client.on('shardError', error => {
+    console.error('❌ [SHARD ERROR] 웹소켓 연결 오류 발생:', error);
+});
+
+client.on('shardDisconnect', (event, id) => {
+    console.warn(`⚠️ [DISCONNECT] 샤드 ${id}의 연결이 끊겼습니다:`, event);
+});
+
+client.on('invalidated', () => {
+    console.error('❌ [INVALIDATED] 세션이 무효화되었습니다. 토큰이 올바른지 확인하세요.');
+});
+// ----------------------------------------------------------------
 
 const TOKEN = process.env.TOKEN;
 
-if (!TOKEN) {
-  console.error("❌ [ERROR] TOKEN 환경 변수를 찾을 수 없습니다!");
+if (!TOKEN || TOKEN === "") {
+  console.error("❌ [ERROR] TOKEN 환경 변수가 비어있습니다! Render의 Environment 설정을 확인하세요.");
 } else {
-  console.log("🔑 [INFO] 토큰을 성공적으로 읽어왔습니다. 로그인을 시도합니다...");
+  console.log("🔑 [INFO] 토큰을 읽어왔습니다. 연결을 시도합니다...");
 }
 
 const TARGET_CATEGORY_ID = '1444681949913419777'; 
@@ -42,7 +55,7 @@ const CONFIG = {
 };
 
 client.once('ready', () => {
-  console.log(`✅ [SUCCESS] 봇 로그인 완료: ${client.user.tag}`);
+  console.log(`✅ [SUCCESS] 봇 로그인 완료! 계정: ${client.user.tag}`);
 });
 
 client.on('messageCreate', async (message) => {
@@ -80,10 +93,9 @@ client.on('messageCreate', async (message) => {
   }
 });
 
-// ================= [로그인 부분 수정] =================
+// 3. 실제 로그인 시도
 client.login(TOKEN).catch(err => {
-  console.error("❌ [LOGIN FAILED] 디스코드 로그인 중 오류 발생!");
-  console.error("에러 메시지:", err.message);
-  console.error("에러 코드:", err.code);
+  console.error("❌ [LOGIN FAILED] 디스코드 서버에서 로그인을 거절했습니다.");
+  console.error("메시지:", err.message);
+  console.error("코드:", err.code);
 });
-// =====================================================
