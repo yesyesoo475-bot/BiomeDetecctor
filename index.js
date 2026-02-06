@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 
-// 24시간 가동을 위한 웹 서버
+// 24시간 가동을 위한 웹 서버.
 app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(3000);
 
