@@ -1,7 +1,7 @@
 const express = require('express');
 const app = express();
 
-// 1. Render 포트 설정
+// 1. Render용 웹 서버 설정
 const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot is running!'));
 app.listen(PORT, () => {
@@ -10,6 +10,7 @@ app.listen(PORT, () => {
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
+// 봇의 권한 설정 (Intents)
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -18,9 +19,10 @@ const client = new Client({
   ]
 });
 
+// 환경변수에서 토큰 가져오기
 const TOKEN = process.env.TOKEN;
 
-// 2. 바이옴 설정 데이터
+// 2. 설정 데이터 (ID값들 확인 필수)
 const TARGET_CATEGORY_ID = '1444681949913419777'; 
 
 const CONFIG = {
@@ -49,16 +51,21 @@ const CONFIG = {
 
 // 3. 봇 상태 이벤트
 client.once('ready', () => {
-  console.log(`✅ [Bot] 로그인 성공! 접속 계정: ${client.user.tag}`);
+  console.log(`✅ [Bot] 성공적으로 로그인되었습니다!`);
+  console.log(`🤖 접속 계정: ${client.user.tag}`);
 });
 
 client.on('messageCreate', async (message) => {
+  // 웹훅이 아니거나 임베드가 없으면 무시
   if (!message.webhookId || message.embeds.length === 0) return;
+  
+  // 지정된 카테고리가 아니면 무시
   if (message.channel.parentId !== TARGET_CATEGORY_ID) return;
 
   const originalEmbed = message.embeds[0];
   const description = (originalEmbed.description ?? '').toLowerCase();
 
+  // 설정된 키워드가 포함되어 있는지 확인
   const targetConfig = Object.values(CONFIG).find(conf => description.includes(conf.key));
   if (!targetConfig) return;
 
@@ -66,7 +73,10 @@ client.on('messageCreate', async (message) => {
     const targetChannel = client.channels.cache.get(targetConfig.channelId) 
                           || await client.channels.fetch(targetConfig.channelId);
     
-    if (!targetChannel) return;
+    if (!targetChannel) {
+        console.error(`❌ [Error] 채널을 찾을 수 없음: ${targetConfig.channelId}`);
+        return;
+    }
 
     const messageLink = message.url;
 
@@ -86,22 +96,18 @@ client.on('messageCreate', async (message) => {
     console.log(`🚀 [${new Date().toLocaleString()}] ${targetConfig.name} 알림 전송 완료`);
 
   } catch (error) {
-    console.error('❌ [Error] 메시지 전송 중 에러:', error);
+    console.error('❌ [Error] 메시지 전송 중 에러 발생:', error);
   }
 });
 
-// 4. 실행 및 로그인 로직 (디버깅 강화)
-console.log("⏳ [System] 디스코드 로그인 시도 시작...");
+// 4. 로그인 실행 (로그 개선)
+console.log("⏳ [System] 디스코드 API 로그인 시도 중...");
 
-if (!TOKEN || TOKEN.length < 10) {
-    console.error("❌ [Error] 유효한 TOKEN이 설정되지 않았습니다. Environment 설정을 확인하세요.");
+if (!TOKEN) {
+    console.error("❌ [Error] TOKEN 환경변수가 설정되지 않았습니다! Render 설정을 확인하세요.");
 } else {
-    client.login(TOKEN)
-      .then(() => {
-        console.log("📡 [System] 디스코드 API에 로그인 요청을 보냈습니다.");
-      })
-      .catch(err => {
-        console.error("❌ [Login Error] 로그인 중 에러가 발생했습니다:");
-        console.error(err); // 구체적인 에러 이유(인텐트 부족, 토큰 만료 등)가 여기에 찍힙니다.
-      });
+    client.login(TOKEN).catch(err => {
+        console.error("❌ [Login Error] 토큰이 잘못되었거나 권한 설정이 필요합니다:");
+        console.error(err.message);
+    });
 }
