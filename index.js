@@ -1,7 +1,10 @@
 const express = require('express');
 const app = express();
+
+// 1. Render는 환경 변수로 포트를 지정해주므로 process.env.PORT를 우선 사용합니다.
+const PORT = process.env.PORT || 3000;
 app.get('/', (req, res) => res.send('Bot is running!'));
-app.listen(3000);
+app.listen(PORT, () => console.log(`웹 서버가 ${PORT} 포트에서 대기 중입니다.`));
 
 const { Client, GatewayIntentBits } = require('discord.js');
 
@@ -14,7 +17,6 @@ const client = new Client({
 });
 
 const TOKEN = process.env.TOKEN;
-
 const TARGET_CATEGORY_ID = '1444681949913419777'; 
 
 const CONFIG = {
@@ -56,15 +58,18 @@ client.on('messageCreate', async (message) => {
   if (!targetConfig) return;
 
   try {
-    const targetChannel = await client.channels.fetch(targetConfig.channelId);
+    // 2. 캐시된 채널을 먼저 찾고, 없으면 fetch하도록 하여 성능을 높였습니다.
+    const targetChannel = client.channels.cache.get(targetConfig.channelId) 
+                          || await client.channels.fetch(targetConfig.channelId);
+    
     if (!targetChannel) return;
 
-    const messageLink = `https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`;
+    // 3. messageLink를 수동 생성 대신 내장 속성인 message.url을 사용했습니다.
+    const messageLink = message.url;
 
-    // 본문 구성: [역할핑] [바이옴 이름] 바이옴이 감지되었습니다. + 링크
     let content = "";
     if (targetConfig.roleId) {
-      content += `<@&${targetConfig.roleId}> `; // 오로라일 때만 핑 추가
+      content += `<@&${targetConfig.roleId}> `;
     }
     content += `**${targetConfig.name} 바이옴이 감지되었습니다.**\n`;
     content += `🔗 **원본 메시지 링크:** ${messageLink}`;
