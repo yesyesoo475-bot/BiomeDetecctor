@@ -1,48 +1,59 @@
 const express = require('express');
 const app = express();
-
-// 1. 웹 서버를 먼저 실행 (Render가 서비스를 'Live'로 인식하게 함)
-const PORT = process.env.PORT || 3000;
-app.get('/', (req, res) => res.send('Bot status: Checking...'));
-app.listen(PORT, () => {
-  console.log(`[Step 1] 웹 서버 가동 중 (포트: ${PORT})`);
-});
-
 const { Client, GatewayIntentBits } = require('discord.js');
 
-// 2. 봇 설정
+// 1. 웹 서버 설정 (Render용)
+const PORT = process.env.PORT || 3000;
+app.get('/', (req, res) => res.send('Bot status: Initializing...'));
+app.listen(PORT, () => {
+  console.log(`[1] Web server is live on port ${PORT}`);
+});
+
+// 2. 봇 클라이언트 생성
 const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent
+    GatewayIntentBits.MessageContent,
   ]
 });
 
-// 3. 토큰 값 직접 확인 로그
-const TOKEN = process.env.TOKEN;
-
-console.log("[Step 2] 토큰 확인 프로세스 시작...");
-
-if (!TOKEN) {
-  console.error("❌ 에러: TOKEN 환경변수가 텅 비어있습니다!");
-} else {
-  console.log(`📡 토큰 발견 (앞 글자 5개): ${TOKEN.substring(0, 5)}...`);
+// 3. 실행 함수 정의
+async function startBot() {
+  const TOKEN = process.env.TOKEN;
   
-  // 4. 로그인 시도 및 에러 강제 포착
-  console.log("[Step 3] 디스코드 API 로그인 시도...");
-  
-  client.login(TOKEN)
-    .then(() => {
-      console.log(`✅ 성공: ${client.user.tag} 계정으로 로그인되었습니다.`);
-    })
-    .catch((err) => {
-      console.error("❌ 로그인 실패 상세 정보:");
-      console.error(err); // 여기에 무조건 에러가 찍혀야 합니다.
-    });
+  if (!TOKEN) {
+    console.error("❌ TOKEN is missing in environment variables!");
+    return;
+  }
+
+  console.log("[2] Attempting to login to Discord...");
+
+  try {
+    // 타임아웃 20초 설정
+    const loginPromise = client.login(TOKEN);
+    const timeoutPromise = new Promise((_, reject) => 
+      setTimeout(() => reject(new Error('Login Timeout (20s)')), 20000)
+    );
+
+    // 로그인과 타임아웃 중 먼저 끝나는 쪽 실행
+    await Promise.race([loginPromise, timeoutPromise]);
+    console.log(`✅ [3] Success! Logged in as: ${client.user.tag}`);
+  } catch (error) {
+    console.error("❌ [4] Login failed or timed out:");
+    console.error(error);
+  }
 }
 
-// 봇이 준비되었을 때 실행될 이벤트
+// 봇 실행
+startBot();
+
+// 준비 완료 이벤트
 client.once('ready', () => {
-  console.log("🚀 봇이 모든 준비를 마쳤습니다!");
+  console.log("🚀 Bot is ready and listening for events.");
+});
+
+// 에러 핸들러 추가 (비정상 종료 방지)
+process.on('unhandledRejection', error => {
+	console.error('Unhandled promise rejection:', error);
 });
