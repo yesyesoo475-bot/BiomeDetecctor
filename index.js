@@ -66,7 +66,7 @@ client.on('messageCreate', async (message) => {
     const targetChannel = await client.channels.fetch(targetConfig.channelId);
     if (!targetChannel) return;
 
-    // 3. 메시지 본문 구성.
+    // 3. 메시지 본문 구성
     let content = "";
     
     // 에브리원 핑 대상인 경우
